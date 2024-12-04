@@ -71,7 +71,7 @@ def dilate_image(image: np.ndarray, kernel_size: int = 3, iterations: int = 1) -
 
     Args:
         image (np.ndarray): Input binary or thresholded image.
-        kernel_size (int): Size of the structuring element (default is 5).
+        kernel_size (int): Size of the structuring element (default is 3).
         iterations (int): Number of times to apply dilation (default is 1).
 
     Returns:
@@ -91,6 +91,15 @@ def dilate_image(image: np.ndarray, kernel_size: int = 3, iterations: int = 1) -
     return dilated_image
 
 def preprocess(frame: Matlike) -> Matlike:
+    """
+    Preprocess a frame by converting to grayscale and aplying a blut filter. Then, the frame is canny edge detected and dilated.
+
+    Args:
+        frame (Matlike): Input frame to be preprocessed.
+
+    Returns:
+        Matlike: Preprocessed frame.
+    """
     filtered_frame = filter_color(frame)
     
     filtered_frame = cv2.cvtColor(filtered_frame, cv2.COLOR_BGR2GRAY)
@@ -104,24 +113,33 @@ def preprocess(frame: Matlike) -> Matlike:
     return dilated
 
 def draw_bbox(frame: Matlike, bbox: Tuple) -> Matlike:
+    """
+    Draws a bounding box on a frame.
+
+    Args:
+        frame (Matlike): Input frame.
+        bbox (Tuple): Bounding box coordinates (x, y, width, height).
+    
+    Returns:
+        Matlike: Frame with bounding box drawn.
+    """
     x, y, w, h = bbox
 
-    return cv2.rectangle(frame.copy(), (x, y), (x + w, y + h), (0, 255, 0), 2)
+    return cv2.rectangle(frame.copy(), (x, y), (x + w, y + h), (255, 0, 0), 2)
 
 def filter_components(frame: Matlike) -> Tuple[Matlike, Tuple[int, int, int, int]]:
     """
-    Detects connected components in a binary image, draws bounding boxes, 
-    and returns the bounding box of the largest component.
+    Detects connected components in a binary image, returns the bounding box coordinates of filtered components by area.
 
     Args:
         frame (Matlike): Input binary or grayscale image.
 
     Returns:
         Tuple[Matlike, Tuple[int, int, int, int]]: 
-            - Processed frame with bounding boxes drawn.
-            - Bounding box of the largest connected component in (x, y, w, h) format.
+            - Image on BGR colours.
+            - Coordinates of bounding box of the largest connected component in (x, y, w, h) format.
     """
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(frame, connectivity=8)
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(frame, connectivity=8)
     output_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_GRAY2BGR)
 
     dices: List[Tuple[int, int, int, int]] = []
@@ -136,9 +154,9 @@ def filter_components(frame: Matlike) -> Tuple[Matlike, Tuple[int, int, int, int
     
     return output_frame, dices
 
-def determine_dice(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> int:
+def determine_dice(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[int, None]:
     """
-    Determines the dice value based on the number of circles (dots) detected using Hough Circle Transform.
+    Determines the dice value based on the number of circles (dots) detected using Hough Circle.
     
     Args:
         frame (np.ndarray): The input image (BGR or grayscale).
@@ -177,6 +195,18 @@ def determine_dice(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> int:
     return 0, None
 
 def draw_dices(frame: Matlike, circles: List[Tuple[int, int, int]], number: int = None, border: int = 10) -> Matlike:
+    """
+    Draws dices on a frame.
+
+    Args:
+        frame (Matlike): Input frame.
+        circles (List[Tuple[int, int, int]]): List of circles (x_center, y_center, radius).
+        number (int, optional): Number of dices to draw. Defaults to None.
+        border (int, optional): Border thickness. Defaults to 10.
+
+    Returns:
+        Matlike: Frame with dices drawn.
+    """
     frame = frame.copy()
     
     if circles is None: return frame
@@ -189,12 +219,24 @@ def draw_dices(frame: Matlike, circles: List[Tuple[int, int, int]], number: int 
     return frame
 
 def write_image(frame: Matlike, point: Tuple[int, int], text: str, size=1) -> Matlike:
+    """
+    Writes text on a frame.
+
+    Args:
+        frame (Matlike): Input frame.
+        point (Tuple[int, int]): Coordinates of the text position.
+        text (str): Text to write.
+        size (int, optional): Text size. Defaults to 1.
+
+    Returns:
+        Matlike: Frame with text written.
+    """
     return cv2.putText(frame,
                         text,
                         (point[0], point[1]),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
-                        (0, 255, 0),
+                        (255, 0, 0),
                         size,
                         cv2.LINE_AA)
 
@@ -234,7 +276,7 @@ if __name__ == "__main__":
                     
                     res[n] = number if number > res[n] else res[n]
                     
-            cv2.imshow("Comparasion", resize(combine_frames_side_by_side(frame, image_with_components)))
+            cv2.imshow("Comparison", resize(combine_frames_side_by_side(frame, image_with_components)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -251,7 +293,7 @@ if __name__ == "__main__":
     for k, res in enumerate(results):
         sum = 0
         
-        print(f"Resultado {k}:")
+        print(f"Resultado {k+1}:")
         
         for i, num in res.items():
             print(f'\t- Dado {i}: {num}')
