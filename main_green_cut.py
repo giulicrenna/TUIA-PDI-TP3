@@ -7,6 +7,24 @@ FILES: List[str] = os.listdir(os.path.join(os.getcwd(), "data"))
 
 Matlike = np.ndarray
 
+def crop_green_region(frame: Matlike, mask) -> Matlike:
+     
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if contours:
+        # Get the bounding box of the largest contour
+        largest_contour = max(contours, key=cv2.contourArea)  
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        print(largest_contour)
+
+        # Crop the region from the original frame using the bounding box
+        cropped_region = frame[y:y+h, x:x+w]
+        
+        return cropped_region
+    else:
+        # If no contours are found, return an empty or original image
+        return np.zeros_like(frame)  # No region found
+
 def filter_color(frame: Matlike) -> Matlike:
     """
     Filters the frame to isolate colors within the specified HSV range.
@@ -17,8 +35,11 @@ def filter_color(frame: Matlike) -> Matlike:
     Returns:
         Matlike: Image with only the filtered color in the specified HSV range.
     """
+    #hMin, sMin, vMin = 0, 0, 0
+    #hMax, sMax, vMax = 180, 150, 255
     hMin, sMin, vMin = 0, 0, 0
     hMax, sMax, vMax = 30, 255, 255
+
     lower_bound = np.array([hMin, sMin, vMin])
     upper_bound = np.array([hMax, sMax, vMax])
 
@@ -26,7 +47,7 @@ def filter_color(frame: Matlike) -> Matlike:
 
     mask = cv2.inRange(hsv_frame, lower_bound, upper_bound)
 
-    filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
+    filtered_frame = cv2.bitwise_not(frame, frame, mask=mask)
 
     return filtered_frame
 
@@ -63,7 +84,7 @@ def combine_frames_side_by_side(frame1: Matlike, frame2: Matlike) -> Matlike:
 
 def resize(frame: Matlike) -> Matlike:
     return cv2.resize(frame.copy(),
-                      (frame.shape[1]//2, frame.shape[0]//2))
+                      (frame.shape[1]//4, frame.shape[0]//4))
 
 def dilate_image(image: np.ndarray, kernel_size: int = 3, iterations: int = 1) -> np.ndarray:
     """
@@ -260,34 +281,6 @@ def write_image(frame: Matlike, point: Tuple[int, int], text: str, size=1) -> Ma
                         cv2.LINE_AA)
 
 
-def get_green_region(components: Tuple[Matlike, Matlike, Matlike, Matlike]) -> Tuple[int, int, int, int] | None:
-    """
-    Returns the bounding box (x, y, width, height) of the green region with the largest area.
-
-    Args:
-    components : Tuple[Matlike, Matlike, Matlike, Matlike]
-        The connected components of the frame.
-
-    Returns:
-    green_region : Tuple[int, int, int, int] or None
-    
-    The bounding box (x, y, width, height) of the largest green region, or None if no valid region is found.
-    """
-    _, _, stats, _ = components
-
-    largest_area: int = 0
-    largest_bbox = None
-
-    for stat in stats:
-        x, y, w, h, area = stat
-
-        if area > 1000 and area > largest_area:  
-            largest_area = area
-            largest_bbox = (x, y, w, h)
-
-    return largest_bbox
-    
-
 if __name__ == "__main__":
     results: List[Dict] = []
     
@@ -309,12 +302,14 @@ if __name__ == "__main__":
             frame = resize(frame)
             
             filtered_frame = preprocess(frame)
+
+            color_frame = filter_color(frame)
+
+#            print(color_frame[0])
+            cv2.imshow("frame", color_frame)
             
+       
             components = get_components(filtered_frame)
-
-            green_region = get_green_region(components)
-
-            cv2.imshow("Frame", draw_bbox(frame, green_region))
 
             image_with_components, bboxes = filter_components(filtered_frame, components)
             
@@ -330,6 +325,7 @@ if __name__ == "__main__":
                     
                     res[n] = number if number > res[n] else res[n]
                     
+            
             #cv2.imshow("Comparison", resize(combine_frames_side_by_side(frame, image_with_components)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
