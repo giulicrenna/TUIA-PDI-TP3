@@ -7,6 +7,30 @@ FILES: List[str] = os.listdir(os.path.join(os.getcwd(), "data"))
 
 Matlike = np.ndarray
 
+def crop_green_region(frame: Matlike) -> Matlike:
+    """
+    Crops the green region from the frame using the mask.
+    Args:
+        frame (Matlike): The frame to be cropped.
+        mask (Matlike): The mask to be used for cropping.
+    Returns:
+        Matlike: The cropped image.
+    """
+
+    lower_black = np.array([0, 0, 0])      # Lower bound of black
+    upper_black = np.array([180, 255, 50]) # Upper bound of black
+    mask = cv2.inRange(frame, lower_black, upper_black)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if contours:
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        cropped_image = frame[y:y+h, x:x+w]
+        return cropped_image
+    return None
+
+
+
 def filter_color(frame: Matlike) -> Matlike:
     """
     Filtra el frame para aislar los colores dentro del rango HSV especificado.
@@ -259,6 +283,9 @@ if __name__ == "__main__":
                 break
             
             frame = resize(frame)
+
+            frame = crop_green_region(frame)
+            #cv2.imshow("Cropped Region", cropped_region)
             
             filtered_frame, edges, blurred = preprocess(frame)
             
