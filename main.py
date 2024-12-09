@@ -9,13 +9,13 @@ Matlike = np.ndarray
 
 def filter_color(frame: Matlike) -> Matlike:
     """
-    Filters the frame to isolate colors within the specified HSV range.
+    Filtra el frame para aislar los colores dentro del rango HSV especificado.
 
     Args:
-        frame (Matlike): Input image in BGR format.
+        frame (Matlike): Imagen de entrada en formato BGR.
 
     Returns:
-        Matlike: Image with only the filtered color in the specified HSV range.
+        Matlike: Imagen con solo el color filtrado dentro del rango HSV especificado.
     """
     hMin, sMin, vMin = 0, 0, 0
     hMax, sMax, vMax = 30, 255, 255
@@ -32,14 +32,14 @@ def filter_color(frame: Matlike) -> Matlike:
 
 def combine_frames_side_by_side(frame1: Matlike, frame2: Matlike) -> Matlike:
     """
-    Combines two frames side by side into a single frame, allowing grayscale and color images.
+    Combina dos frames lado a lado en un solo frame, permitiendo imágenes en escala de grises y color.
 
     Args:
-        frame1 (Matlike): The first frame (e.g., original frame).
-        frame2 (Matlike): The second frame (e.g., processed frame).
+        frame1 (Matlike): El primer frame (por ejemplo, el frame original).
+        frame2 (Matlike): El segundo frame (por ejemplo, el frame procesado).
 
     Returns:
-        Matlike: A single frame with the two frames combined horizontally.
+        Matlike: Un solo frame con los dos frames combinados horizontalmente.
     """
     if len(frame1.shape) == 2:
         frame1 = cv2.cvtColor(frame1, cv2.COLOR_GRAY2BGR)
@@ -67,15 +67,15 @@ def resize(frame: Matlike) -> Matlike:
 
 def dilate_image(image: np.ndarray, kernel_size: int = 3, iterations: int = 1) -> np.ndarray:
     """
-    Applies dilation to a thresholded binary image.
+    Aplica dilatación a una imagen binaria umbralizada.
 
     Args:
-        image (np.ndarray): Input binary or thresholded image.
-        kernel_size (int): Size of the structuring element (default is 3).
-        iterations (int): Number of times to apply dilation (default is 1).
+        image (np.ndarray): Imagen binaria o umbralizada de entrada.
+        kernel_size (int): Tamaño del elemento estructurante (por defecto es 3).
+        iterations (int): Número de veces que se aplica la dilatación (por defecto es 1).
 
     Returns:
-        np.ndarray: Dilated image.
+        np.ndarray: Imagen dilatada.
     """
     if len(image.shape) == 3:
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -92,13 +92,13 @@ def dilate_image(image: np.ndarray, kernel_size: int = 3, iterations: int = 1) -
 
 def preprocess(frame: Matlike) -> Matlike:
     """
-    Preprocess a frame by converting to grayscale and aplying a blut filter. Then, the frame is canny edge detected and dilated.
+    Preprocesa un frame convirtiéndolo a escala de grises y aplicando un filtro de desenfoque. Luego, se aplica la detección de bordes Canny y dilatación.
 
     Args:
-        frame (Matlike): Input frame to be preprocessed.
+        frame (Matlike): Frame de entrada a preprocesar.
 
     Returns:
-        Matlike: Preprocessed frame.
+        Matlike: Frame preprocesado.
     """
     filtered_frame = filter_color(frame)
     
@@ -110,18 +110,18 @@ def preprocess(frame: Matlike) -> Matlike:
     
     dilated = dilate_image(edges, iterations=1)
     
-    return dilated
+    return dilated, edges, blurred
 
 def draw_bbox(frame: Matlike, bbox: Tuple) -> Matlike:
     """
-    Draws a bounding box on a frame.
+    Dibuja un cuadro delimitador en un frame.
 
     Args:
-        frame (Matlike): Input frame.
-        bbox (Tuple): Bounding box coordinates (x, y, width, height).
+        frame (Matlike): Frame de entrada.
+        bbox (Tuple): Coordenadas del cuadro delimitador (x, y, ancho, alto).
     
     Returns:
-        Matlike: Frame with bounding box drawn.
+        M
     """
     x, y, w, h = bbox
 
@@ -129,15 +129,16 @@ def draw_bbox(frame: Matlike, bbox: Tuple) -> Matlike:
 
 def filter_components(frame: Matlike) -> Tuple[Matlike, Tuple[int, int, int, int]]:
     """
-    Detects connected components in a binary image, returns the bounding box coordinates of filtered components by area.
+    Detecta componentes conectados en una imagen binaria,
+    y devuelve las coordenadas del cuadro delimitador de los componentes filtrados por área.
 
     Args:
-        frame (Matlike): Input binary or grayscale image.
+        frame (Matlike): Imagen binaria o en escala de grises de entrada.
 
     Returns:
         Tuple[Matlike, Tuple[int, int, int, int]]: 
-            - Image on BGR colours.
-            - Coordinates of bounding box of the largest connected component in (x, y, w, h) format.
+            - Imagen en colores BGR.
+            - Coordenadas del cuadro delimitador del componente conectado más grande en formato (x, y, w, h).
     """
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(frame, connectivity=8)
     output_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_GRAY2BGR)
@@ -149,21 +150,21 @@ def filter_components(frame: Matlike) -> Tuple[Matlike, Tuple[int, int, int, int
         x, y, w, h, area = stats[label]
 
         if abs(h / w - 1) <= 0.3 and area > 0.001 * frame_area and area < 0.003 * frame_area: 
-            # cv2.rectangle(output_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.rectangle(output_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
             dices.append((x, y, w, h))
     
     return output_frame, dices
 
 def determine_dice(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[int, None]:
     """
-    Determines the dice value based on the number of circles (dots) detected using Hough Circle.
-    
+    Determina el valor del dado basado en el número de círculos (puntos) detectados usando el algoritmo de Círculos de Hough.
+
     Args:
-        frame (np.ndarray): The input image (BGR or grayscale).
-        bbox (Tuple[int, int, int, int]): The bounding box (x, y, width, height) of the dice.
+        frame (np.ndarray): Imagen de entrada (en formato BGR o escala de grises).
+        bbox (Tuple[int, int, int, int]): El cuadro delimitador (x, y, ancho, alto) del dado.
 
     Returns:
-        int: The dice value (number of detected circles).
+        int: El valor del dado (número de círculos detectados).
     """
     x, y, w, h = bbox
     roi = frame[y:y+h, x:x+w]
@@ -195,18 +196,6 @@ def determine_dice(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[
     return 0, None
 
 def draw_dices(frame: Matlike, circles: List[Tuple[int, int, int]], number: int = None, border: int = 10) -> Matlike:
-    """
-    Draws dices on a frame.
-
-    Args:
-        frame (Matlike): Input frame.
-        circles (List[Tuple[int, int, int]]): List of circles (x_center, y_center, radius).
-        number (int, optional): Number of dices to draw. Defaults to None.
-        border (int, optional): Border thickness. Defaults to 10.
-
-    Returns:
-        Matlike: Frame with dices drawn.
-    """
     frame = frame.copy()
     
     if circles is None: return frame
@@ -219,18 +208,6 @@ def draw_dices(frame: Matlike, circles: List[Tuple[int, int, int]], number: int 
     return frame
 
 def write_image(frame: Matlike, point: Tuple[int, int], text: str, size=1) -> Matlike:
-    """
-    Writes text on a frame.
-
-    Args:
-        frame (Matlike): Input frame.
-        point (Tuple[int, int]): Coordinates of the text position.
-        text (str): Text to write.
-        size (int, optional): Text size. Defaults to 1.
-
-    Returns:
-        Matlike: Frame with text written.
-    """
     return cv2.putText(frame,
                         text,
                         (point[0], point[1]),
@@ -240,14 +217,37 @@ def write_image(frame: Matlike, point: Tuple[int, int], text: str, size=1) -> Ma
                         size,
                         cv2.LINE_AA)
 
+def export_video(output_path: str,
+                 frame_size: tuple,
+                 fps: int,
+                 frame_generator) -> str:
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  
+    out = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+
+    for frame in frame_generator:
+        frame_resized = cv2.resize(frame, frame_size)
+        out.write(frame_resized)
+
+    out.release()
+    
+    print(f"Video guardado en: {output_path}")
+
 if __name__ == "__main__":
+    """
+    El buffer se crea para poder guardar posteriormente los videos.
+    """
     results: List[Dict] = []
+    buffer: Dict[str, Dict[str, List]] = {os.path.basename(file).split('.')[0] : {'filtered': [],
+                                                                                  'components': [],
+                                                                                  'final' : [],
+                                                                                  'edges' : [],
+                                                                                  'blurred' : []} for file in FILES}
     
     for n_file, file in enumerate(FILES):
+        filename: str = os.path.basename(file).split('.')[0]
         video_path = os.path.join(os.getcwd(), "data", file)
         cap = cv2.VideoCapture(video_path)
-        res = {i: 0 for i in range(5)}
-        
+        res = {i: {'number': 0, 'last_pos':-1} for i in range(5)}
         
         if not cap.isOpened():
             print(f"Could not open video file: {file}")
@@ -260,22 +260,35 @@ if __name__ == "__main__":
             
             frame = resize(frame)
             
-            filtered_frame = preprocess(frame)
+            filtered_frame, edges, blurred = preprocess(frame)
             
             image_with_components, bboxes = filter_components(filtered_frame)
             
             if len(bboxes) == 5:            
                 for n, dice in enumerate(bboxes):
                     number, circles = determine_dice(frame, dice)
-                    sum_ = sum([x for x in res.values()])
+                    sum_ = sum([x['number'] for x in res.values()])
                     
-                    frame = draw_bbox(frame, dice)
-                    frame = draw_dices(frame, circles, number, 10)
-                    frame = write_image(frame, (dice[0] - 5, dice[1] - 5), f"N: {res[n]}")
-                    frame = write_image(frame, (25, 25), f"Resultado: {sum_}", 3)
+                    if abs(res[n]['last_pos'] - dice[0] + [2])[0] <= 10:
+                        frame = draw_dices(frame, circles, number, 10)
+                        
+                        frame = write_image(frame, (dice[0] - 5, dice[1] - 5), f"N: {res[n]['number']}")
+                        
+                        frame = write_image(frame, (25, 25), f"Resultado: {sum_}", 3)
+                        
+                        frame = draw_bbox(frame, dice)
                     
-                    res[n] = number if number > res[n] else res[n]
+                    res[n] = {
+                        'number' : number if number > res[n]['number'] else res[n]['number'],
+                        'last_pos' : dice[0] + [2]
+                        }
                     
+            buffer[filename]['filtered'].append(cv2.cvtColor(filtered_frame, cv2.COLOR_GRAY2BGR))
+            buffer[filename]['edges'].append(cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR))
+            buffer[filename]['blurred'].append(cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR))
+            buffer[filename]['components'].append(image_with_components)
+            buffer[filename]['final'].append(frame)
+            
             cv2.imshow("Comparison", resize(combine_frames_side_by_side(frame, image_with_components)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -286,6 +299,19 @@ if __name__ == "__main__":
         cap.release()
         cv2.destroyAllWindows()
 
+    """
+    Exporto todos los videos.
+    """
+    
+    for file in buffer.keys():
+        images = buffer[file]
+        
+        for image, buffer_ in images.items():
+            path = os.path.join(os.getcwd(), 'output', f'{file}-{image}.avi')
+            export_video(output_path=path,
+                         frame_size=(360, 741),
+                         fps=30,
+                         frame_generator=iter(buffer_))
 
     """
     Muestro los resultados
@@ -296,7 +322,8 @@ if __name__ == "__main__":
         print(f"Resultado {k+1}:")
         
         for i, num in res.items():
-            print(f'\t- Dado {i}: {num}')
-            sum += num
+            number = num['number']
+            print(f'\t- Dado {i}: {number}')
+            sum += number
             
         print(f'\tResultado Final: {sum}')
