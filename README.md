@@ -38,8 +38,7 @@ pip install -r requirements.txt
 ```bash
 source .venv/bin/activate
 
-python3 TP2_ej1.py
-python3 TP2_ej2.py
+python3 main.py
 ```
 
 ### Windows
