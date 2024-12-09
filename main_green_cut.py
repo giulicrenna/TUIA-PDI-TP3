@@ -2,28 +2,38 @@ import cv2
 import os
 from typing import List, Tuple, Dict
 import numpy as np
-
+import matplotlib.pyplot as plt
 FILES: List[str] = os.listdir(os.path.join(os.getcwd(), "data"))
 
 Matlike = np.ndarray
 
 def crop_green_region(frame: Matlike, mask) -> Matlike:
+    """
+    Crops the green region from the frame using the mask.
+
+    Args:
+        frame (Matlike): The frame to be cropped.
+        mask (Matlike): The mask to be used for cropping.
+
+    Returns:
+        Matlike: The cropped image.
+    """
      
+    lower_black = np.array([0, 0, 0])      # Lower bound of black
+    upper_black = np.array([180, 255, 50]) # Upper bound of black
+
+    mask = cv2.inRange(frame, lower_black, upper_black)
+
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if contours:
-        # Get the bounding box of the largest contour
-        largest_contour = max(contours, key=cv2.contourArea)  
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        print(largest_contour)
+        largest_contour = max(contours, key=cv2.contourArea)
 
-        # Crop the region from the original frame using the bounding box
-        cropped_region = frame[y:y+h, x:x+w]
-        
-        return cropped_region
-    else:
-        # If no contours are found, return an empty or original image
-        return np.zeros_like(frame)  # No region found
+        x, y, w, h = cv2.boundingRect(largest_contour)
+
+        cropped_image = frame[y:y+h, x:x+w]
+        return cropped_image
+    return None
 
 def filter_color(frame: Matlike) -> Matlike:
     """
@@ -47,9 +57,35 @@ def filter_color(frame: Matlike) -> Matlike:
 
     mask = cv2.inRange(hsv_frame, lower_bound, upper_bound)
 
-    filtered_frame = cv2.bitwise_not(frame, frame, mask=mask)
+    filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
 
     return filtered_frame
+
+def filter_color_green(frame: Matlike) -> Matlike:
+    """
+    Filters the frame to isolate colors within the specified HSV range.
+
+    Args:
+        frame (Matlike): Input image in BGR format.
+
+    Returns:
+        Matlike: Image with only the filtered color in the specified HSV range.
+    """
+    hMin, sMin, vMin = 0, 0, 0
+    hMax, sMax, vMax = 180, 150, 255
+    #hMin, sMin, vMin = 0, 0, 0
+    #hMax, sMax, vMax = 30, 255, 255
+
+    lower_bound = np.array([hMin, sMin, vMin])
+    upper_bound = np.array([hMax, sMax, vMax])
+
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    mask = cv2.inRange(hsv_frame, lower_bound, upper_bound)
+
+    filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
+
+    return filtered_frame, mask
 
 def combine_frames_side_by_side(frame1: Matlike, frame2: Matlike) -> Matlike:
     """
@@ -121,7 +157,7 @@ def preprocess(frame: Matlike) -> Matlike:
     Returns:
         Matlike: Preprocessed frame.
     """
-    filtered_frame = filter_color(frame)
+    #filtered_frame = filter_color(frame)
     
     filtered_frame = cv2.cvtColor(filtered_frame, cv2.COLOR_BGR2GRAY)
     
@@ -293,22 +329,26 @@ if __name__ == "__main__":
         if not cap.isOpened():
             print(f"Could not open video file: {file}")
             continue
-
+        
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
             
             frame = resize(frame)
-            
-            filtered_frame = preprocess(frame)
 
-            color_frame = filter_color(frame)
+            masked_frame, mask = filter_color_green(frame)
 
-#            print(color_frame[0])
-            cv2.imshow("frame", color_frame)
+            cv2.imshow("frame", masked_frame)
+            cv2.waitKey(0)
             
-       
+            cropped_frame = crop_green_region(frame, mask)
+
+            cv2.imshow("frame", cropped_frame)
+            cv2.waitKey(0)
+
+            filtered_frame = preprocess(cropped_frame)
+            
             components = get_components(filtered_frame)
 
             image_with_components, bboxes = filter_components(filtered_frame, components)
@@ -326,7 +366,7 @@ if __name__ == "__main__":
                     res[n] = number if number > res[n] else res[n]
                     
             
-            #cv2.imshow("Comparison", resize(combine_frames_side_by_side(frame, image_with_components)))
+            cv2.imshow("Comparison", resize(combine_frames_side_by_side(frame, image_with_components)))
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -335,6 +375,7 @@ if __name__ == "__main__":
         
         cap.release()
         cv2.destroyAllWindows()
+
 
 
     """
