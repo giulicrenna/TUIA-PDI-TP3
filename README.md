@@ -1,6 +1,6 @@
 # Tecnicatura Universitaria en Inteligencia Artificial 
 ## FCEIA - UNR 
-## Procesamiento de imágenes  - Trabajo Práctico N°: 2.
+## Procesamiento de imágenes  - Trabajo Práctico N°: 3.
 
 
 **Integrantes:**
