@@ -329,7 +329,6 @@ if __name__ == "__main__":
     """
     Exporto todos los videos.
     """
-    
     for file in buffer.keys():
         images = buffer[file]
         
